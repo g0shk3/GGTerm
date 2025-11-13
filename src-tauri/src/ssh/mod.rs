@@ -4,7 +4,7 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use tauri::{Emitter, Manager};
+use tauri::Emitter;
 use crate::db::SSHSession;
 
 #[derive(Debug, thiserror::Error)]

@@ -6,7 +6,7 @@ mod ssh;
 
 use db::{Database, SSHSession};
 use std::sync::Mutex;
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 
 struct AppState {
     db: Database,
