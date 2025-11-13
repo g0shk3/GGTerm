@@ -30,6 +30,7 @@ impl Database {
     }
 
     pub fn save_session(&self, mut session: SSHSession) -> Result<SSHSession, String> {
+        println!("save_session called with: {:?}", session);
         let mut sessions = self.sessions.lock().unwrap();
 
         if session.id.is_empty() {
@@ -37,22 +38,29 @@ impl Database {
             let now = chrono::Utc::now().to_rfc3339();
             session.created_at = now.clone();
             session.updated_at = now;
+            println!("Created new session with id: {}", session.id);
         } else {
             session.updated_at = chrono::Utc::now().to_rfc3339();
+            println!("Updated existing session: {}", session.id);
         }
 
         sessions.insert(session.id.clone(), session.clone());
+        println!("Total sessions in DB: {}", sessions.len());
         Ok(session)
     }
 
     pub fn get_sessions(&self) -> Vec<SSHSession> {
         let sessions = self.sessions.lock().unwrap();
-        sessions.values().cloned().collect()
+        let result: Vec<SSHSession> = sessions.values().cloned().collect();
+        println!("get_sessions called, returning {} sessions", result.len());
+        result
     }
 
     pub fn get_session(&self, id: &str) -> Option<SSHSession> {
         let sessions = self.sessions.lock().unwrap();
-        sessions.get(id).cloned()
+        let result = sessions.get(id).cloned();
+        println!("get_session called for id: {}, found: {}", id, result.is_some());
+        result
     }
 
     pub fn delete_session(&self, id: &str) -> Result<(), String> {
