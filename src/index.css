@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #1e1e2e;
+  color: #f8f8f2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Xterm styling */
+.xterm {
+  padding: 10px;
+  height: 100%;
+}
+
+.xterm-viewport::-webkit-scrollbar {
+  width: 10px;
+}
+
+.xterm-viewport::-webkit-scrollbar-track {
+  background: #282a36;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb {
+  background: #44475a;
+  border-radius: 5px;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #6272a4;
+}
