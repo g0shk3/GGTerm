@@ -40,7 +40,8 @@ export default function SessionManager({ onClose }: SessionManagerProps) {
 
   const handleSaveSession = async () => {
     try {
-      const session: Omit<SSHSession, 'id' | 'createdAt' | 'updatedAt'> = {
+      const session: SSHSession = {
+        id: '', // Backend ще го генерира
         name: formData.name,
         host: formData.host,
         port: parseInt(formData.port),
@@ -48,6 +49,8 @@ export default function SessionManager({ onClose }: SessionManagerProps) {
         authType: formData.authType,
         password: formData.authType === 'password' ? formData.password : undefined,
         privateKey: formData.authType === 'key' ? formData.privateKey : undefined,
+        createdAt: '', // Backend ще го генерира
+        updatedAt: '', // Backend ще го генерира
       };
 
       await invoke('save_session', { session });
@@ -64,6 +67,7 @@ export default function SessionManager({ onClose }: SessionManagerProps) {
       });
     } catch (error) {
       console.error('Failed to save session:', error);
+      alert(`Failed to save session: ${error}`);
     }
   };
 

@@ -16,7 +16,7 @@ export default function Terminal({ tabId, sessionId, onConnectionChange }: Termi
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+  const isConnectedRef = useRef(false);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -87,7 +87,7 @@ export default function Terminal({ tabId, sessionId, onConnectionChange }: Termi
       'connection-status',
       (event) => {
         if (event.payload.tab_id === tabId) {
-          setIsConnected(event.payload.connected);
+          isConnectedRef.current = event.payload.connected;
           onConnectionChange?.(event.payload.connected);
 
           if (event.payload.error) {
@@ -99,9 +99,10 @@ export default function Terminal({ tabId, sessionId, onConnectionChange }: Termi
 
     // Изпращаме данни към SSH сървъра
     xterm.onData((data) => {
-      if (isConnected) {
-        invoke('send_terminal_input', { tabId, data }).catch(console.error);
-      }
+      // Винаги изпращаме - backend ще игнорира ако няма връзка
+      invoke('send_terminal_input', { tabId, data }).catch((err) => {
+        console.error('Failed to send input:', err);
+      });
     });
 
     // Welcome message
@@ -125,11 +126,12 @@ export default function Terminal({ tabId, sessionId, onConnectionChange }: Termi
 
       invoke('connect_ssh', { tabId, sessionId })
         .then(() => {
-          setIsConnected(true);
+          isConnectedRef.current = true;
           onConnectionChange?.(true);
         })
         .catch((error) => {
           xtermRef.current?.write(`\r\n\x1b[31mConnection failed: ${error}\x1b[0m\r\n`);
+          isConnectedRef.current = false;
           onConnectionChange?.(false);
         });
     }

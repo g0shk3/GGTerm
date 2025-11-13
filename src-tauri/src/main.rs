@@ -41,18 +41,24 @@ async fn connect_ssh(
     tab_id: String,
     session_id: String,
 ) -> Result<(), String> {
+    println!("Connecting SSH for tab {} with session {}", tab_id, session_id);
+
     let session = state
         .db
         .get_session(&session_id)
         .ok_or("Session not found")?;
+
+    println!("Found session: {}@{}:{}", session.username, session.host, session.port);
 
     let tab_id_clone = tab_id.clone();
     let app_handle_clone = app_handle.clone();
 
     // Стартираме SSH връзката в отделна нишка
     std::thread::spawn(move || {
+        println!("Starting SSH connection thread for tab {}", tab_id_clone);
         match ssh::SSHConnection::new(&session) {
             Ok(mut conn) => {
+                println!("SSH connection established for tab {}", tab_id_clone);
                 // Известяваме за успешна връзка
                 let _ = app_handle_clone.emit("connection-status", serde_json::json!({
                     "tab_id": tab_id_clone,
@@ -65,7 +71,7 @@ async fn connect_ssh(
                 });
             }
             Err(e) => {
-                eprintln!("SSH connection error: {}", e);
+                eprintln!("SSH connection error for tab {}: {}", tab_id_clone, e);
                 let _ = app_handle_clone.emit("connection-status", serde_json::json!({
                     "tab_id": tab_id_clone,
                     "connected": false,
@@ -83,7 +89,11 @@ async fn send_terminal_input(
     tab_id: String,
     data: String,
 ) -> Result<(), String> {
-    ssh::send_input(&tab_id, &data).map_err(|e| e.to_string())
+    println!("Sending input to tab {}: {:?}", tab_id, data);
+    ssh::send_input(&tab_id, &data).map_err(|e| {
+        eprintln!("Failed to send input: {}", e);
+        e.to_string()
+    })
 }
 
 #[tauri::command]
