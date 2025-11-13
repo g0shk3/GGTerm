@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::Mutex;
-use uuid::Uuid;
+use tauri_plugin_sql::{Migration, MigrationKind};
+
+pub mod async_db;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SSHSession {
     pub id: String,
     pub name: String,
@@ -13,11 +14,42 @@ pub struct SSHSession {
     pub auth_type: String,
     pub password: Option<String>,
     pub private_key: Option<String>,
-    pub group: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
 
+// Legacy migration function - no longer used with sqlx
+#[allow(dead_code)]
+pub fn get_migrations() -> Vec<Migration> {
+    vec![Migration {
+        version: 1,
+        description: "create_sessions_table",
+        sql: "CREATE TABLE IF NOT EXISTS sessions (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                host TEXT NOT NULL,
+                port INTEGER NOT NULL,
+                username TEXT NOT NULL,
+                auth_type TEXT NOT NULL,
+                password TEXT,
+                private_key TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );",
+        kind: MigrationKind::Up,
+    }]
+}
+
+// In this new implementation, we don't need a Database struct.
+// We will pass the app_handle to each command and get the db connection from there.
+// The functions will be async and will interact directly with the database.
+// This is a more idiomatic way to work with tauri plugins.
+
+// The main.rs file will be updated to reflect these changes.
+// For now, I will leave the old struct here but commented out,
+// as I will need to modify main.rs next.
+
+/*
 pub struct Database {
     sessions: Mutex<HashMap<String, SSHSession>>,
 }
@@ -69,29 +101,4 @@ impl Database {
         Ok(())
     }
 }
-
-// За по-напреднала версия с SQLite:
-// use tauri_plugin_sql::{Migration, MigrationKind};
-//
-// pub fn get_migrations() -> Vec<Migration> {
-//     vec![
-//         Migration {
-//             version: 1,
-//             description: "create_sessions_table",
-//             sql: "CREATE TABLE sessions (
-//                 id TEXT PRIMARY KEY,
-//                 name TEXT NOT NULL,
-//                 host TEXT NOT NULL,
-//                 port INTEGER NOT NULL,
-//                 username TEXT NOT NULL,
-//                 auth_type TEXT NOT NULL,
-//                 password TEXT,
-//                 private_key TEXT,
-//                 group_name TEXT,
-//                 created_at TEXT NOT NULL,
-//                 updated_at TEXT NOT NULL
-//             )",
-//             kind: MigrationKind::Up,
-//         }
-//     ]
-// }
+*/

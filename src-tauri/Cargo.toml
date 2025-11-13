@@ -16,13 +16,24 @@ tauri-plugin-sql = { version = "2.0", features = ["sqlite"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
-ssh2 = "0.9"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 thiserror = "2.0"
 async-trait = "0.1"
 chrono = "0.4"
 shellexpand = "3.1"
+# Database - migrating from rusqlite to sqlx for async
+rusqlite = { version = "0.31", features = ["bundled"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite"] }
+# SSH dependencies
+russh = "0.42"
+russh-keys = "0.42"
+cryptovec = "0.2"
+rand = "0.8"
 lazy_static = "1.4"
+# Encryption for passwords
+ring = "0.17"
+base64 = "0.22"
+
 
 [features]
 default = ["custom-protocol"]

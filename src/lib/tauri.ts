@@ -1,22 +1,22 @@
-// Tauri API wrapper за сигурност при импортиране
-declare global {
-  interface Window {
-    __TAURI__: any;
-  }
-}
+import { invoke as tauriInvoke } from '@tauri-apps/api/core';
+import { listen as tauriListen } from '@tauri-apps/api/event';
 
 // Wrapper за invoke функцията
 export async function invoke<T = any>(cmd: string, args?: Record<string, any>): Promise<T> {
-  if (typeof window !== 'undefined' && window.__TAURI__?.core) {
-    return window.__TAURI__.core.invoke(cmd, args);
+  try {
+    return await tauriInvoke(cmd, args);
+  } catch (error) {
+    console.error(`Error invoking command '${cmd}':`, error);
+    throw new Error(`Tauri API invoke failed for command: ${cmd}`);
   }
-  throw new Error('Tauri API not available');
 }
 
 // Wrapper за listen функцията
 export async function listen<T>(event: string, handler: (event: { payload: T }) => void): Promise<() => void> {
-  if (typeof window !== 'undefined' && window.__TAURI__?.event) {
-    return window.__TAURI__.event.listen(event, handler);
+  try {
+    return await tauriListen(event, handler);
+  } catch (error) {
+    console.error(`Error listening to event '${event}':`, error);
+    throw new Error(`Tauri API listen failed for event: ${event}`);
   }
-  throw new Error('Tauri API not available');
 }

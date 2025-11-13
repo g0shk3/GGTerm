@@ -3,81 +3,60 @@
 
 mod db;
 mod ssh;
+mod encryption;
 
-use db::{Database, SSHSession};
-use std::sync::Mutex;
-use tauri::{Emitter, Manager, State};
+use db::SSHSession;
+use db::async_db;
+use sqlx::SqlitePool;
+use tauri::{AppHandle, Manager, State};
 
-struct AppState {
-    db: Database,
-    connections: Mutex<std::collections::HashMap<String, ()>>,
-}
+// New async-friendly state using SQLx connection pool
+pub struct DbState(pub SqlitePool);
 
 #[tauri::command]
-async fn get_sessions(state: State<'_, AppState>) -> Result<Vec<SSHSession>, String> {
-    Ok(state.db.get_sessions())
+async fn get_sessions(db_state: State<'_, DbState>) -> Result<Vec<SSHSession>, String> {
+    async_db::get_sessions(&db_state.0)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn save_session(
-    state: State<'_, AppState>,
+    db_state: State<'_, DbState>,
     session: SSHSession,
 ) -> Result<SSHSession, String> {
-    state.db.save_session(session)
+    async_db::save_session(&db_state.0, session)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn delete_session(
-    state: State<'_, AppState>,
-    session_id: String,
-) -> Result<(), String> {
-    state.db.delete_session(&session_id)
+async fn delete_session(db_state: State<'_, DbState>, session_id: String) -> Result<(), String> {
+    async_db::delete_session(&db_state.0, &session_id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn connect_ssh(
-    state: State<'_, AppState>,
-    app_handle: tauri::AppHandle,
+    db_state: State<'_, DbState>,
+    app_handle: AppHandle,
     tab_id: String,
     session_id: String,
 ) -> Result<(), String> {
     println!("Connecting SSH for tab {} with session {}", tab_id, session_id);
 
-    let session = state
-        .db
-        .get_session(&session_id)
-        .ok_or("Session not found")?;
+    // Use async database call - no blocking!
+    let session = async_db::get_session(&db_state.0, &session_id)
+        .await
+        .map_err(|e| e.to_string())?;
 
     println!("Found session: {}@{}:{}", session.username, session.host, session.port);
 
-    let tab_id_clone = tab_id.clone();
-    let app_handle_clone = app_handle.clone();
-
-    // Стартираме SSH връзката в отделна нишка
-    std::thread::spawn(move || {
-        println!("Starting SSH connection thread for tab {}", tab_id_clone);
-        match ssh::SSHConnection::new(&session) {
-            Ok(mut conn) => {
-                println!("SSH connection established for tab {}", tab_id_clone);
-                // Известяваме за успешна връзка
-                let _ = app_handle_clone.emit("connection-status", serde_json::json!({
-                    "tab_id": tab_id_clone,
-                    "connected": true,
-                }));
-
-                // Стартираме shell сесията
-                conn.execute_shell(tab_id_clone.clone(), app_handle_clone.clone(), move || {
-                    println!("SSH connection closed for tab: {}", tab_id_clone);
-                });
-            }
-            Err(e) => {
-                eprintln!("SSH connection error for tab {}: {}", tab_id_clone, e);
-                let _ = app_handle_clone.emit("connection-status", serde_json::json!({
-                    "tab_id": tab_id_clone,
-                    "connected": false,
-                    "error": e.to_string(),
-                }));
-            }
+    // Spawn a tokio task for the long-running SSH connection
+    tokio::spawn(async move {
+        if let Err(e) = ssh::connect(&session, app_handle, tab_id).await {
+            eprintln!("SSH connection task failed: {}", e);
         }
     });
 
@@ -85,34 +64,37 @@ async fn connect_ssh(
 }
 
 #[tauri::command]
-async fn send_terminal_input(
-    tab_id: String,
-    data: String,
-) -> Result<(), String> {
-    println!("Sending input to tab {}: {:?}", tab_id, data);
-    ssh::send_input(&tab_id, &data).map_err(|e| {
-        eprintln!("Failed to send input: {}", e);
-        e.to_string()
-    })
+async fn send_terminal_input(tab_id: String, data: String) -> Result<(), String> {
+    ssh::send_input(&tab_id, &data).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn close_terminal(
-    tab_id: String,
-) -> Result<(), String> {
-    ssh::close_connection(&tab_id);
+async fn close_terminal(tab_id: String) -> Result<(), String> {
+    ssh::close_connection(&tab_id).await;
     Ok(())
 }
 
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_sql::Builder::new().build())
         .setup(|app| {
-            let app_state = AppState {
-                db: Database::new(),
-                connections: Mutex::new(std::collections::HashMap::new()),
-            };
-            app.manage(app_state);
+            let handle = app.handle();
+            let app_data_dir = handle.path().app_data_dir().expect("Failed to get app data dir");
+            if !app_data_dir.exists() {
+                std::fs::create_dir_all(&app_data_dir).expect("Failed to create app data dir");
+            }
+            let db_path = app_data_dir.join("ggterm.db");
+            let db_url = format!("sqlite://{}", db_path.display());
+
+            // Initialize async database with connection pool
+            // This is a blocking operation, so we use block_on
+            let runtime = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+            let pool = runtime.block_on(async {
+                async_db::init_db(&db_url)
+                    .await
+                    .expect("Failed to initialize database")
+            });
+
+            app.manage(DbState(pool));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

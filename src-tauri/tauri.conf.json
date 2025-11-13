@@ -25,7 +25,17 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "capabilities": [
+        {
+          "identifier": "main-capability",
+          "windows": ["main"],
+          "permissions": [
+            "core:event:default",
+            "sql:default"
+          ]
+        }
+      ]
     }
   },
   "plugins": {
