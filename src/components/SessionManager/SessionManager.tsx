@@ -26,7 +26,9 @@ export default function SessionManager({ onClose }: SessionManagerProps) {
 
   const loadSessions = async () => {
     try {
+      console.log('Loading sessions...');
       const result = await invoke<SSHSession[]>('get_sessions');
+      console.log('Loaded sessions:', result);
       setSessions(result);
     } catch (error) {
       console.error('Failed to load sessions:', error);
@@ -34,6 +36,7 @@ export default function SessionManager({ onClose }: SessionManagerProps) {
   };
 
   const handleConnect = (session: SSHSession) => {
+    console.log('Connecting to session:', session);
     addTab(session);
     onClose();
   };
@@ -53,7 +56,10 @@ export default function SessionManager({ onClose }: SessionManagerProps) {
         updatedAt: '', // Backend ще го генерира
       };
 
-      await invoke('save_session', { session });
+      console.log('Saving session:', session);
+      const result = await invoke('save_session', { session });
+      console.log('Session saved, result:', result);
+
       await loadSessions();
       setIsCreating(false);
       setFormData({
