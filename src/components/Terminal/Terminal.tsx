@@ -3,7 +3,7 @@ import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
-import { invoke, listen } from '../lib/tauri';
+import { invoke, listen } from '../../lib/tauri';
 
 interface TerminalProps {
   tabId: string;
